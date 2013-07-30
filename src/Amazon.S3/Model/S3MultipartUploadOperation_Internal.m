@@ -261,6 +261,23 @@ typedef void (^AbortMultipartUploadBlock)();
             }
             else
             {
+
+                if([self isCancelled]) {
+                    if(self.request.stream)
+                    {
+                        [self.request.stream close];
+                    }
+                    
+                    if(self.abortMultipartUpload)
+                    {
+                        dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+                        dispatch_async(queue, self.abortMultipartUpload);
+                    }
+
+                    [self finish];
+                    return;
+                }
+                
                 [self.completeRequest addPartWithPartNumber:self.currentPartNo withETag:uploadPartResponse.etag];
 
                 self.dataForPart = nil;
@@ -327,7 +344,8 @@ typedef void (^AbortMultipartUploadBlock)();
 
         if((self.s3.maxRetries > self.retryCount && (self.error || self.exception))
            && [self.s3 shouldRetry:nil exception:self.exception]
-           && [self isExecuting])
+           && [self isExecuting]
+           && ![self isCancelled])
         {
             AMZLogDebug(@"Retrying %@", [request class]);
 
@@ -379,7 +397,8 @@ typedef void (^AbortMultipartUploadBlock)();
 
         if((self.s3.maxRetries > self.retryCount && (self.error || self.exception))
            && [self.s3 shouldRetry:nil exception:self.exception]
-           && [self isExecuting])
+           && [self isExecuting]
+           && ![self isCancelled])
         {
             AMZLogDebug(@"Retrying %@", [request class]);
 
